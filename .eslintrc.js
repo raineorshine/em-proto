@@ -6,7 +6,7 @@ module.exports = {
     jest: true,
     'react-native/react-native': true
   },
-  extends: ['standard', 'react-app', 'plugin:react/recommended', 'plugin:import/typescript', 'raine', 'prettier',],
+  extends: ['standard', 'prettier', 'react-app', 'plugin:react/recommended', 'plugin:import/typescript', 'raine'],
   ignorePatterns: 'scripts',
   overrides: [
     {
