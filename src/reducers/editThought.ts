@@ -24,6 +24,7 @@ import {
   timestamp,
   unroot,
 } from '../util'
+import { getSessionId } from '../util/sessionManager'
 
 export interface editThoughtPayload {
   oldValue: string
@@ -123,6 +124,7 @@ const editThought = (
 
   // do not add floating thought to context
   const newThoughtWithoutContext = thoughtCollision || {
+    updatedBy: getSessionId(),
     value: newValue,
     contexts: [],
     created: timestamp(),
@@ -387,6 +389,7 @@ const editThought = (
       context: contextNew,
       children: thoughtNewSubthoughts,
       lastUpdated: timestamp(),
+      updatedBy: getSessionId(),
     },
     ...(showContexts
       ? {
@@ -394,11 +397,13 @@ const editThought = (
             context: contextOld,
             children: thoughtOldSubthoughts,
             lastUpdated: timestamp(),
+            updatedBy: getSessionId(),
           },
           [contextParentEncoded]: {
             context: contextParent,
             children: thoughtParentSubthoughts,
             lastUpdated: timestamp(),
+            updatedBy: getSessionId(),
           },
         }
       : null),

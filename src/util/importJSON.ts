@@ -18,10 +18,12 @@ import {
   timestamp,
   unroot,
 } from '../util'
+import { getSessionId } from './sessionManager'
 
 export interface ImportJSONOptions {
   lastUpdated?: Timestamp
   skipRoot?: boolean
+  updatedBy?: string
 }
 
 interface ThoughtPair {
@@ -51,6 +53,7 @@ const insertThought = (
   rank: number,
   created: Timestamp = timestamp(),
   lastUpdated: Timestamp = timestamp(),
+  updatedBy = getSessionId(),
 ): ThoughtPair => {
   const rootContext = context.length > 0 ? context : [HOME_TOKEN]
   const id = createId()
@@ -69,6 +72,7 @@ const insertThought = (
     ],
     created: lexemeOld?.created ?? created,
     lastUpdated,
+    updatedBy,
   }
 
   const parentNew: Parent = {
@@ -85,6 +89,7 @@ const insertThought = (
       },
     ],
     lastUpdated,
+    updatedBy,
   }
 
   return {
@@ -103,6 +108,7 @@ const saveThoughts = (
   rankIncrement = 1,
   startRank = 0,
   lastUpdated = timestamp(),
+  updatedBy = getSessionId(),
 ): ThoughtIndices => {
   const contextEncoded = hashContext(context)
 
@@ -155,6 +161,7 @@ const saveThoughts = (
           rank,
           createdInherited,
           lastUpdatedInherited,
+          updatedBy,
         )
 
         // TODO: remove mutations
@@ -223,7 +230,7 @@ export const importJSON = (
   state: State,
   simplePath: SimplePath,
   blocks: Block[],
-  { lastUpdated = timestamp(), skipRoot = false }: ImportJSONOptions = {},
+  { lastUpdated = timestamp(), updatedBy = getSessionId(), skipRoot = false }: ImportJSONOptions = {},
 ) => {
   const initialThoughtIndex: Index<Lexeme> = {}
   const initialContextIndex: Index<Parent> = {}
@@ -247,6 +254,7 @@ export const importJSON = (
         context: rootedContext,
         children: getAllChildren(state, rootedContext).filter(child => !equalThoughtRanked(child, destThought)),
         lastUpdated,
+        updatedBy,
       }
     }
   }
@@ -264,6 +272,7 @@ export const importJSON = (
     rankIncrement,
     rankStart,
     lastUpdated,
+    updatedBy,
   )
 
   // get the last child imported in the first level so the cursor can be set

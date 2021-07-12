@@ -11,6 +11,10 @@ import { GestureResponderEvent } from 'react-native'
 declare global {
   interface Document {
     DND: any
+    webkitHidden: any
+    mozHidden: any
+    msHidden: any
+    oHidden: any
   }
 
   interface Window {
@@ -53,11 +57,12 @@ export interface User {
   // see Firebase user for more properties
 }
 
-export interface Ref {
-  child: (name: string) => Ref
-  once: (eventName: string, callback?: (snapshot: Snapshot) => void) => Promise<Snapshot>
-  on: (eventName: string, callback: (snapshot: Snapshot) => any) => void
+export interface Ref<T = any> {
+  child: (name: string) => Ref<T>
+  once: (eventName: string, callback?: (snapshot: Snapshot<T>) => void) => Promise<Snapshot>
+  on: (eventName: string, callback: (snapshot: Snapshot<T>) => any) => void
   update: (updates: Index, callback?: (err: Error | null, ...args: any[]) => void) => Promise<any>
+  off: (eventName: string) => void
 }
 
 export interface Snapshot<T = any> {
@@ -120,6 +125,7 @@ export interface Lexeme {
   contexts: ThoughtContext[]
   created: Timestamp
   lastUpdated: Timestamp
+  updatedBy?: string
 }
 
 export interface ThoughtWordsIndex {
@@ -152,6 +158,7 @@ export interface Parent {
   children: Child[]
   lastUpdated: Timestamp
   pending?: boolean
+  updatedBy?: string
 }
 
 /** Sort Preferences with type and direction. */

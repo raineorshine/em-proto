@@ -1,8 +1,14 @@
 /* eslint-disable fp/no-this */
 import Dexie from 'dexie'
+import { Store } from 'redux'
+import 'dexie-observable'
+import { ICreateChange, IDeleteChange, IUpdateChange, IDatabaseChange } from 'dexie-observable/api'
 import _ from 'lodash'
 import { hashThought, timestamp } from '../util'
 import { Context, Index, Lexeme, Parent, ThoughtWordsIndex, Timestamp } from '../types'
+import { getSessionId, SessionType } from '../util/sessionManager'
+import { getSubscriptionUtils } from '../util/subscriptionUtils'
+import { State } from '../util/initialState'
 import win from './win'
 
 // TODO: Why doesn't this work? Fix IndexedDB during tests.
@@ -30,8 +36,8 @@ class EM extends Dexie {
     }
 
     this.version(1).stores({
-      contextIndex: 'id, context, *children, lastUpdated',
-      thoughtIndex: 'id, value, *contexts, created, lastUpdated, *words',
+      contextIndex: 'id, context, *children, lastUpdated, updatedBy',
+      thoughtIndex: 'id, value, *contexts, created, lastUpdated, updatedBy, *words',
       thoughtWordsIndex: 'id, *words',
       helpers: 'id, cursor, lastUpdated, recentlyEdited, schemaVersion',
       logs: '++id, created, message, stack',
@@ -61,7 +67,7 @@ export interface Log {
   stack?: any
 }
 
-const db = new Dexie('EM') as EM
+export const db = new Dexie('EM') as EM
 
 /** Initializes the EM record where helpers are stored. */
 const initHelpers = async () => {
@@ -120,12 +126,14 @@ const initDB = async () => {
 export const clearAll = () => Promise.all([db.thoughtIndex.clear(), db.contextIndex.clear(), db.helpers.clear()])
 
 /** Updates a single thought in the thoughtIndex. */
-export const updateThought = async (id: string, thought: Lexeme) => db.thoughtIndex.put({ id, ...thought })
+export const updateThought = async (id: string, thought: Lexeme) =>
+  db.thoughtIndex.put({ id, ...thought, updatedBy: getSessionId() })
 
 /** Updates multiple thoughts in the thoughtIndex. */
 export const updateThoughtIndex = async (thoughtIndexMap: Index<Lexeme | null>) => {
   const thoughtsArray = Object.keys(thoughtIndexMap).map(key => ({
     ...(thoughtIndexMap[key] as Lexeme),
+    updatedBy: getSessionId(),
     id: key,
   }))
   return db.thoughtIndex.bulkPut(thoughtsArray)
@@ -148,13 +156,14 @@ export const getThoughtIndex = async () => {
 
 /** Updates a single thought in the contextIndex. Ignores parentEntry.pending. */
 export const updateContext = async (id: string, { context, children, lastUpdated }: Parent) => {
-  return db.contextIndex.put({ id, context, children, lastUpdated })
+  return db.contextIndex.put({ id, context, children, updatedBy: getSessionId(), lastUpdated })
 }
 
 /** Updates multiple thoughts in the contextIndex. */
 export const updateContextIndex = async (contextIndexMap: Index<Parent | null>) => {
   const contextsArray = Object.keys(contextIndexMap).map(key => ({
     ...(contextIndexMap[key] as Parent),
+    updatedBy: getSessionId(),
     id: key,
   }))
   return db.contextIndex.bulkPut(contextsArray)
@@ -218,5 +227,110 @@ export const fullTextSearch = async (value: string) => {
 /** Logs a message. */
 export const log = async ({ message, stack }: { message: string; stack: any }) =>
   db.logs.add({ created: timestamp(), message, stack })
+
+// maps to dexie-observable's DatabaseChangeType which cannot be imported
+export enum DatabaseChangeType {
+  created = 1,
+  updated = 2,
+  deleted = 3,
+}
+
+/** Get db change handlers. */
+const getDbChangeHandlers = ({
+  getContextLocal,
+  getThoughtLocal,
+  getUpdatedObject,
+  shouldIncludeUpdate,
+}: ReturnType<typeof getSubscriptionUtils>) => ({
+  [DatabaseChangeType.created]: (change: IDatabaseChange) => {
+    const { table, key, obj } = change as ICreateChange
+    return {
+      thoughtIndexUpdates:
+        table === 'thoughtIndex' && shouldIncludeUpdate(obj, SessionType.LOCAL)
+          ? { [key as string]: obj as Lexeme }
+          : {},
+      contextIndexUpdates:
+        table === 'contextIndex' && shouldIncludeUpdate(obj, SessionType.LOCAL)
+          ? { [key as string]: obj as Parent }
+          : {},
+    }
+  },
+  [DatabaseChangeType.updated]: async (change: IDatabaseChange) => {
+    const { key, table, mods: updates } = change as IUpdateChange
+
+    /**
+     * Dexie falsly sends null as a child value if a thought is removed from a context
+     * We need to manually filter out such children that can cause the app to break.
+     */
+    const removeInvalidContexts = (thought: Lexeme): Lexeme => ({
+      ...thought,
+      contexts: thought.contexts.filter(c => c !== null),
+    })
+
+    /** Filter thoughts with null contexts. */
+    const filterInvalidContexts = (context: Parent): Parent => ({
+      ...context,
+      children: context.children.filter(child => child !== null),
+    })
+    /** Get thought merged with updates. */
+    const getThoughtUpdates = async (id: string, updates: Index) => {
+      const thought = await getThoughtById(id)
+      if (shouldIncludeUpdate({ ...(thought || (updates as Lexeme)) }, SessionType.LOCAL)) {
+        const updatedThought = thought ? getUpdatedObject(thought, updates as Lexeme) : null
+        return updatedThought ? { [key]: removeInvalidContexts(updatedThought) } : {}
+      }
+      return {}
+    }
+    /** Get context merged with updates. */
+    const getContextUpdates = async (id: string, updates: Index) => {
+      const context = await getContextById(id)
+      if (shouldIncludeUpdate({ ...(context || (updates as Parent)) }, SessionType.LOCAL)) {
+        const updatedContext = context ? getUpdatedObject(context, updates as Parent) : null
+        return updatedContext ? { [key]: filterInvalidContexts(updatedContext) } : {}
+      }
+      return {}
+    }
+
+    return {
+      thoughtIndexUpdates: table === 'thoughtIndex' ? await getThoughtUpdates(key, updates) : {},
+      contextIndexUpdates: table === 'contextIndex' ? await getContextUpdates(key, updates) : {},
+    }
+  },
+  [DatabaseChangeType.deleted]: (change: IDatabaseChange) => {
+    const { key, table, oldObj } = change as IDeleteChange
+    return {
+      thoughtIndexUpdates:
+        table === 'thoughtIndex' &&
+        oldObj &&
+        oldObj.id &&
+        shouldIncludeUpdate(oldObj, SessionType.LOCAL) &&
+        getThoughtLocal(key)
+          ? { [key as string]: null }
+          : {},
+      contextIndexUpdates:
+        table === 'contextIndex' &&
+        oldObj &&
+        oldObj.id &&
+        shouldIncludeUpdate(oldObj, SessionType.LOCAL) &&
+        getContextLocal(key)
+          ? { [key as string]: null }
+          : {},
+    }
+  },
+})
+
+/** Subscribe to dexie updates. */
+export const subscribe = (store: Store<State, any>) => {
+  const subscriptionUtils = getSubscriptionUtils(store)
+  const dbChangeHandlers = getDbChangeHandlers(subscriptionUtils)
+
+  Object.prototype.hasOwnProperty.call(db, 'observable') &&
+    db.on('changes', changes => {
+      changes.forEach(async change => {
+        const updates = await dbChangeHandlers[change.type](change)
+        subscriptionUtils.updateThoughtsFromSubscription(updates)
+      })
+    })
+}
 
 export default initDB

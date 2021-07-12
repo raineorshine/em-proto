@@ -2,6 +2,7 @@ import { timestamp } from './timestamp'
 import { equalArrays } from './equalArrays'
 import { notNull } from './notNull'
 import { Context, Lexeme, Timestamp } from '../types'
+import { getSessionId } from './sessionManager'
 
 /** Returns a new thought less the given context. */
 export const removeContext = (
@@ -21,6 +22,7 @@ export const removeContext = (
         : [],
       created: lexeme.created || lastUpdated,
       lastUpdated: lastUpdated,
+      updatedBy: getSessionId(),
     }),
   )
 }

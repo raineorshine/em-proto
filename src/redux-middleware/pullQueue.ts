@@ -2,14 +2,14 @@ import _ from 'lodash'
 import { ThunkMiddleware } from 'redux-thunk'
 import { EM_TOKEN, HOME_TOKEN } from '../constants'
 import {
-  decodeContextUrl,
   expandThoughts,
   getAllChildrenByContextHash,
   getContexts,
+  getVisibleContexts,
   hasPushes,
   isContextViewActive,
 } from '../selectors'
-import { equalArrays, hashContext, head, keyValueBy, pathToContext, unroot } from '../util'
+import { equalArrays, hashContext, head, keyValueBy, unroot } from '../util'
 import { pull } from '../action-creators'
 import { State } from '../util/initialState'
 import { Child, Context, ContextHash, Index, ThoughtContext } from '../types'
@@ -25,26 +25,6 @@ const initialPullQueue = (): Index<Context> => ({
   [hashContext([EM_TOKEN])]: [EM_TOKEN],
   [hashContext([HOME_TOKEN])]: [HOME_TOKEN],
 })
-
-/** Generates a map of all visible contexts, including the cursor, all its ancestors, and the expanded contexts. */
-const getVisibleContexts = (state: State, expandedContexts: Index<Context>): Index<Context> => {
-  const { cursor } = state
-
-  // if there is no cursor, decode the url so the cursor can be loaded
-  // after loading the ranks will be inferred to update the cursor
-  const contextUrl = decodeContextUrl(state, window.location.pathname)
-  const contextCursor = cursor ? pathToContext(cursor) : contextUrl
-
-  return {
-    ...expandedContexts,
-    // generate the cursor and all its ancestors
-    // i.e. ['a', b', 'c'], ['a', 'b'], ['a']
-    ...keyValueBy(contextCursor, (value, i) => {
-      const subcontext = contextCursor.slice(0, contextCursor.length - i)
-      return subcontext.length > 0 ? { [hashContext(subcontext)]: subcontext } : null
-    }),
-  }
-}
 
 /** Appends all visible contexts and their children to the pullQueue. */
 const appendVisibleContexts = (state: State, pullQueue: Index<Context>, visibleContexts: Index<Context>) => {

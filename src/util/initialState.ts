@@ -18,6 +18,7 @@ import {
   Shortcut,
 } from '../types'
 import { editThoughtPayload } from '../reducers/editThought'
+import { getSessionId } from './sessionManager'
 import { storage } from './storage'
 
 interface ModalProperties {
@@ -131,6 +132,7 @@ export const initialThoughts = (created: Timestamp = timestamp()): ThoughtsInter
       // start pending to trigger pullQueue fetch
       pending: true,
       lastUpdated: never(),
+      updatedBy: getSessionId(),
     },
     [hashContext([ABSOLUTE_TOKEN])]: {
       context: [ABSOLUTE_TOKEN],
@@ -138,6 +140,7 @@ export const initialThoughts = (created: Timestamp = timestamp()): ThoughtsInter
       // start pending to trigger pullQueue fetch
       pending: true,
       lastUpdated: never(),
+      updatedBy: getSessionId(),
     },
     [hashContext([EM_TOKEN])]: {
       id: hashContext([EM_TOKEN]),
@@ -146,6 +149,7 @@ export const initialThoughts = (created: Timestamp = timestamp()): ThoughtsInter
       // start pending to trigger pullQueue fetch
       pending: true,
       lastUpdated: never(),
+      updatedBy: getSessionId(),
     },
   }
 
@@ -156,6 +160,7 @@ export const initialThoughts = (created: Timestamp = timestamp()): ThoughtsInter
       // set to beginning of epoch to ensure that server thoughtIndex is always considered newer from init thoughtIndex
       created,
       lastUpdated: never(),
+      updatedBy: getSessionId(),
     },
     [hashThought(ABSOLUTE_TOKEN)]: {
       value: ABSOLUTE_TOKEN,
@@ -163,6 +168,7 @@ export const initialThoughts = (created: Timestamp = timestamp()): ThoughtsInter
       // set to beginning of epoch to ensure that server thoughtIndex is always considered newer from init thoughtIndex
       created,
       lastUpdated: never(),
+      updatedBy: getSessionId(),
     },
     // this will get populated by importText in loadLocalState
     // unfortunately that's the best way currently to create nested thoughts and ensure that thoughtIndex and contextIndex are correct
@@ -171,6 +177,7 @@ export const initialThoughts = (created: Timestamp = timestamp()): ThoughtsInter
       contexts: [],
       created,
       lastUpdated: never(),
+      updatedBy: getSessionId(),
     },
   }
 

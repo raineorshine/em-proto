@@ -4,6 +4,7 @@ import { getNextRank, getLexeme, getAllChildren } from '../selectors'
 import { createId, equalThoughtRanked, hashContext, hashThought, head, timestamp } from '../util'
 import { State } from '../util/initialState'
 import { Context, Index, Lexeme, Parent } from '../types'
+import { getSessionId } from '../util/sessionManager'
 
 interface Payload {
   context: Context
@@ -27,6 +28,7 @@ const createThought = (state: State, { context, value, rank, id, addAsContext }:
       contexts: [],
       created: timestamp(),
       lastUpdated: timestamp(),
+      updatedBy: getSessionId(),
     }),
   }
 
@@ -43,6 +45,7 @@ const createThought = (state: State, { context, value, rank, id, addAsContext }:
       created: timestamp(),
       id,
       lastUpdated: timestamp(),
+      updatedBy: getSessionId(),
     }
     const children = getAllChildren(state, contextActual)
       .filter(child => !equalThoughtRanked(child, newContextSubthought))
@@ -52,6 +55,7 @@ const createThought = (state: State, { context, value, rank, id, addAsContext }:
       context: contextActual,
       children,
       lastUpdated: timestamp(),
+      updatedBy: getSessionId(),
     }
   }
 

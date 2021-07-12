@@ -35,6 +35,8 @@ export const initialize = async () => {
 
   await thoughtsLocalPromise
 
+  db.subscribe(store)
+
   return {
     thoughtsLocalPromise,
     ...initEvents(store),

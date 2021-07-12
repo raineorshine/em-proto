@@ -35,14 +35,18 @@ import {
   isDescendantPath,
   timestamp,
 } from '../util'
+import { getSessionId } from '../util/sessionManager'
 
 type ChildUpdate = {
   archived?: Timestamp
+  created: Timestamp
   id: string
+  lastUpdated: Timestamp
   pathNew: Path
   pathOld: Path
   pending?: boolean
   rank: number
+  updatedBy: string
   value: string
 }
 
@@ -234,6 +238,9 @@ const moveThought = (
           pathOld: childPathOld,
           pathNew: childPathNew,
           value: child.value,
+          created: timestamp(),
+          lastUpdated: timestamp(),
+          updatedBy: getSessionId(),
         }
 
         const { lexemeUpdates: recursiveLexemeUpdates, childUpdates: recursivechildUpdates } = recursiveUpdates(
@@ -320,10 +327,11 @@ const moveThought = (
               value: childUpdate.value,
               rank: childUpdate.rank,
               lastUpdated: timestamp(),
+              updatedBy: getSessionId(),
               // childUpdate.id is undefined sometimes. Unable to reproduce.
               id: childUpdate.id ?? '',
               ...(childUpdate.archived ? { archived: childUpdate.archived } : null),
-            })
+            } as Child)
 
           const conflictedPath = pathExists(state, contextNew) ? newPathParent : null
           const isNewContextPending = conflictedPath && isPending(state, contextNew)
@@ -343,6 +351,7 @@ const moveThought = (
                             context: contextOld,
                             children: childrenOld,
                             lastUpdated: timestamp(),
+                            updatedBy: getSessionId(),
                             ...(childUpdate.pending ? { pending: true } : null),
                           }
                         : null,
@@ -355,6 +364,7 @@ const moveThought = (
                       context: contextNew,
                       children: childrenNew,
                       lastUpdated: timestamp(),
+                      updatedBy: getSessionId(),
                       ...(childUpdate.pending ? { pending: true } : null),
                     },
                   }
@@ -397,6 +407,7 @@ const moveThought = (
             context: oldContext,
             children: subthoughtsOld,
             lastUpdated: timestamp(),
+            updatedBy: getSessionId(),
           }
         : null,
     [contextEncodedNew]: {
@@ -404,6 +415,7 @@ const moveThought = (
       context: newContext,
       children: subthoughtsNew,
       lastUpdated: timestamp(),
+      updatedBy: getSessionId(),
     },
     ...contextIndexDescendantUpdates.contextIndex,
   }
