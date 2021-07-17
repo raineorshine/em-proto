@@ -7,6 +7,7 @@ import {
   appendToPath,
   ellipsize,
   equalThoughtValue,
+  hashContext,
   head,
   headValue,
   isDivider,
@@ -111,16 +112,29 @@ const archiveThought = (state: State, options: { path?: Path }): State => {
       ? nextContext()
       : // get first visible thought
         nextSibling(state, value, context, rank)
+
+  const parentPath = parentOf(path)
+
   const [cursorNew, offset]: [Path | null, number | undefined] =
     // Case I: set cursor on prev thought
     prev
-      ? [appendToPath(parentOf(path), prev), prev.value.length]
+      ? [
+          appendToPath(parentOf(path), {
+            ...prev,
+            id: hashContext(unroot([...pathToContext(parentPath), prev.value])),
+          }),
+          prev.value.length,
+        ]
       : // Case II: set cursor on next thought
       next
       ? [
           unroot(
             showContexts
-              ? appendToPath(parentOf(path), { value: head((next as ThoughtContext).context), rank: next.rank })
+              ? appendToPath(parentOf(path), {
+                  id: hashContext(unroot([...pathToContext(parentPath), head((next as ThoughtContext).context)])),
+                  value: head((next as ThoughtContext).context),
+                  rank: next.rank,
+                })
               : appendToPath(parentOf(path), next as Child),
           ),
           0,

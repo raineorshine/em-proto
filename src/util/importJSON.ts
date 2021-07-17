@@ -4,7 +4,6 @@ import { getNextRank, getLexeme, getAllChildren, nextSibling, rootedParentOf } f
 import { Block, Child, Context, Index, Lexeme, Parent, SimplePath, State, Timestamp, ThoughtIndices } from '../@types'
 import {
   appendToPath,
-  createId,
   equalThoughtRanked,
   hashContext,
   hashThought,
@@ -51,7 +50,6 @@ const insertThought = (
   lastUpdated: Timestamp = timestamp(),
 ): ThoughtPair => {
   const rootContext = context.length > 0 ? context : [HOME_TOKEN]
-  const id = createId()
 
   const lexemeOld = getLexeme(state, value)
   const lexemeNew = {
@@ -60,7 +58,7 @@ const insertThought = (
     contexts: [
       ...(lexemeOld?.contexts || []),
       {
-        id,
+        id: hashContext(unroot([...rootContext, value])),
         context: rootContext,
         rank,
       },
@@ -72,11 +70,12 @@ const insertThought = (
   const parentNew: Parent = {
     // TODO: merging parentOld results in pending: true when importing into initialState. Is that correct?
     id: hashContext(rootContext),
+    value: head(rootContext),
     context: rootContext,
     children: [
       ...parentOld.children,
       {
-        id,
+        id: hashContext(unroot([...rootContext, value])),
         value,
         rank,
         lastUpdated,
@@ -240,7 +239,6 @@ export const importJSON = (
     if (lexeme) {
       initialThoughtIndex[hashThought('')] = removeContext(lexeme, context, headRank(simplePath))
       initialContextIndex[contextEncoded] = {
-        id: contextEncoded,
         ...initialContextIndex[contextEncoded],
         context: rootedContext,
         children: getAllChildren(state, rootedContext).filter(child => !equalThoughtRanked(child, destThought)),

@@ -145,11 +145,12 @@ const dataProviderTest = (provider: DataProvider) => {
 
     const parentEntry = {
       id: hashContext(['x']),
+      value: 'x',
       context: ['x'],
       children: [
-        { value: 'a', rank: 0 },
-        { value: 'b', rank: 1 },
-        { value: 'c', rank: 2 },
+        { id: hashContext(['x', 'a']), value: 'a', rank: 0 },
+        { id: hashContext(['x', 'b']), value: 'b', rank: 1 },
+        { id: hashContext(['x', 'c']), value: 'c', rank: 2 },
       ],
       lastUpdated: timestamp(),
     }
@@ -166,17 +167,19 @@ const dataProviderTest = (provider: DataProvider) => {
   test('getContextsByIds', async () => {
     const parentEntryX = {
       id: hashContext(['x']),
+      value: 'x',
       context: ['x'],
       children: [
-        { value: 'a', rank: 0 },
-        { value: 'b', rank: 1 },
-        { value: 'c', rank: 2 },
+        { id: hashContext(['x', 'a']), value: 'a', rank: 0 },
+        { id: hashContext(['x', 'b']), value: 'b', rank: 1 },
+        { id: hashContext(['x', 'c']), value: 'c', rank: 2 },
       ],
       lastUpdated: timestamp(),
     }
 
     const parentEntryA = {
       id: hashContext(['x', 'a']),
+      value: 'a',
       context: ['x', 'a'],
       children: [],
       lastUpdated: timestamp(),
@@ -223,22 +226,24 @@ const dataProviderTest = (provider: DataProvider) => {
   test('updateContextIndex', async () => {
     const parentEntryX = {
       id: hashContext(['x']),
+      value: 'x',
       context: ['x'],
       children: [
-        { value: 'a', rank: 0 },
-        { value: 'b', rank: 1 },
-        { value: 'c', rank: 2 },
+        { id: hashContext(['x', 'a']), value: 'a', rank: 0 },
+        { id: hashContext(['x', 'b']), value: 'b', rank: 1 },
+        { id: hashContext(['x', 'c']), value: 'c', rank: 2 },
       ],
       lastUpdated: timestamp(),
     }
 
     const parentEntryY = {
       id: hashContext(['y']),
+      value: 'y',
       context: ['y'],
       children: [
-        { value: 'd', rank: 0 },
-        { value: 'e', rank: 1 },
-        { value: 'f', rank: 2 },
+        { id: hashContext(['x', 'd']), value: 'd', rank: 0 },
+        { id: hashContext(['x', 'e']), value: 'e', rank: 1 },
+        { id: hashContext(['x', 'f']), value: 'f', rank: 2 },
       ],
       lastUpdated: timestamp(),
     }
@@ -343,6 +348,7 @@ const dataProviderTest = (provider: DataProvider) => {
           children: [],
           lastUpdated: never(),
           pending: true,
+          value: 'y',
         },
       })
 
@@ -382,6 +388,7 @@ const dataProviderTest = (provider: DataProvider) => {
           children: [],
           lastUpdated: never(),
           pending: true,
+          value: 'z',
         },
       })
 
@@ -573,7 +580,7 @@ const dataProviderTest = (provider: DataProvider) => {
 
       const stateNew = reducerFlow([
         importText({ text: rootText }),
-        importText({ path: [{ value: EM_TOKEN, rank: 0 }], text: emText }),
+        importText({ path: [{ id: hashContext([EM_TOKEN]), value: EM_TOKEN, rank: 0 }], text: emText }),
       ])(initialState())
 
       const { contextIndex, thoughtIndex } = stateNew.thoughts

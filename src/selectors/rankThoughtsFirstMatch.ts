@@ -4,6 +4,7 @@ import {
   contextChainToPath,
   equalArrays,
   equalThoughtRanked,
+  hashContext,
   head,
   headValue,
   isRoot,
@@ -71,7 +72,7 @@ const rankThoughtsFirstMatch = (state: State, pathUnranked: string[]): Path => {
       // NOTE: we cannot throw an error if there is no parent, as it may be a floating context
       // unfortunately this that there is no protection against a (incorrectly) missing parent
       rank: parent?.rank ?? 0,
-      id: parent?.id || '',
+      id: parent ? hashContext([...parent.context, value]) : '',
     }
 
     pathResult = appendToPath(pathResult, thoughtRanked)

@@ -35,6 +35,7 @@ import {
   removeDuplicatedContext,
   isDescendantPath,
   timestamp,
+  unroot,
 } from '../util'
 
 type ChildUpdate = {
@@ -146,10 +147,10 @@ const moveThought = (
   const subthoughtsNew = getAllChildren(state, newContext)
     .filter(child => normalizeThought(child.value) !== normalizeThought(value))
     .concat({
+      id: hashContext(unroot([...newContext, value])),
       value,
       rank: newRank,
       lastUpdated: timestamp(),
-      ...(id ? { id } : null),
       ...(archived ? { archived } : {}),
     })
 
@@ -227,7 +228,7 @@ const moveThought = (
 
         const childUpdate: ChildUpdate = {
           // child.id is undefined sometimes. Unable to reproduce.
-          id: child.id ?? '',
+          id: hashContext(unroot(pathToContext(childPathNew))),
           // TODO: Confirm that find will always succeed
           rank: (childLexemeNew.contexts || []).find(context => equalArrays(context.context, contextNew))!.rank,
           pending: isPending(state, childContext),
@@ -341,6 +342,7 @@ const moveThought = (
                       childrenOld.length > 0
                         ? {
                             id: contextEncodedOld,
+                            value: head(contextOld),
                             context: contextOld,
                             children: childrenOld,
                             lastUpdated: timestamp(),
@@ -353,6 +355,7 @@ const moveThought = (
                 ? {
                     [contextEncodedNew]: {
                       id: contextEncodedNew,
+                      value: head(contextNew),
                       context: contextNew,
                       children: childrenNew,
                       lastUpdated: timestamp(),
@@ -395,6 +398,7 @@ const moveThought = (
       subthoughtsOld.length > 0
         ? {
             id: contextEncodedOld,
+            value: head(oldContext),
             context: oldContext,
             children: subthoughtsOld,
             lastUpdated: timestamp(),
@@ -402,6 +406,7 @@ const moveThought = (
         : null,
     [contextEncodedNew]: {
       id: contextEncodedNew,
+      value: head(newContext),
       context: newContext,
       children: subthoughtsNew,
       lastUpdated: timestamp(),

@@ -5,6 +5,7 @@ import {
   getAllChildren,
   getChildrenRanked,
   getLexeme,
+  getParent,
   hasLexeme,
   isPending,
   rankThoughtsFirstMatch,
@@ -18,6 +19,7 @@ import {
   equalThoughtRanked,
   hashContext,
   hashThought,
+  head,
   reducerFlow,
   removeContext,
   timestamp,
@@ -56,6 +58,8 @@ const deleteThought = (state: State, { context, thoughtRanked, showContexts }: P
   const contextEncoded = hashContext(context)
   const thoughtIndexNew = { ...state.thoughts.thoughtIndex }
   const oldRankedThoughts = rankThoughtsFirstMatch(state, thoughts as string[])
+
+  const parent = getParent(state, context)
 
   const isValidThought = lexeme.contexts.find(parent => equalArrays(context, parent.context) && rank === parent.rank)
 
@@ -205,7 +209,8 @@ const deleteThought = (state: State, { context, thoughtRanked, showContexts }: P
     [contextEncoded]:
       subthoughts.length > 0
         ? ({
-            id: contextEncoded,
+            id: parent?.id || contextEncoded,
+            value: head(context),
             context,
             children: subthoughts,
             lastUpdated: timestamp(),

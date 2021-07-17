@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import { treeChange } from '../util/recentlyEditedTree'
-import { getLexeme, getAllChildren, getChildrenRanked, isPending, rootedParentOf } from '../selectors'
+import { getLexeme, getAllChildren, getChildrenRanked, isPending, rootedParentOf, getParent } from '../selectors'
 import updateThoughts from './updateThoughts'
 import { Context, Index, Lexeme, Parent, Path, SimplePath, State, Timestamp } from '../@types'
 
@@ -71,20 +71,40 @@ const editThought = (
   const contextEncodedOld = hashContext(thoughtsOld)
   const contextEncodedNew = hashContext(thoughtsNew)
 
-  const pathLiveOld = (
-    showContexts
-      ? parentOf(parentOf(path))
-          .concat({ value: oldValue, rank: headRank(parentOf(path)) })
-          .concat(head(path))
-      : parentOf(path).concat({ value: oldValue, rank })
-  ) as SimplePath
-  const pathLiveNew = (
-    showContexts
-      ? parentOf(parentOf(path))
-          .concat({ value: newValue, rank: headRank(parentOf(path)) })
-          .concat(head(path))
-      : parentOf(path).concat({ value: newValue, rank })
-  ) as SimplePath
+  const grandParentPath = parentOf(parentOf(path))
+
+  const pathLiveOld = showContexts
+    ? appendToPath(
+        grandParentPath,
+        {
+          id: hashContext(unroot([...pathToContext(grandParentPath), oldValue])),
+          value: oldValue,
+          rank: headRank(parentOf(path)),
+        },
+        head(path),
+      )
+    : appendToPath(parentOf(path), {
+        id: hashContext(unroot([...pathToContext(parentOf(path)), oldValue])),
+        value: oldValue,
+        rank,
+      })
+
+  const pathLiveNew = showContexts
+    ? appendToPath(
+        parentOf(parentOf(path)),
+        {
+          id: hashContext(unroot([...pathToContext(grandParentPath), newValue])),
+          value: newValue,
+          rank: headRank(parentOf(path)),
+        },
+        head(path),
+      )
+    : appendToPath(parentOf(path), {
+        id: hashContext(unroot([...pathToContext(parentOf(path)), newValue])),
+        value: newValue,
+        rank,
+      })
+
   // find exact thought from thoughtIndex
   const exactThought = lexemeOld.contexts.find(
     thoughtContext => equalArrays(thoughtContext.context, context) && thoughtContext.rank === rank,
@@ -99,7 +119,14 @@ const editThought = (
         ? { ...head(cursor), value: newValue }
         : head(cursor),
     )
-  const newPath = path.slice(0, path.length - 1).concat({ value: newValue, rank: rankInContext || rank })
+
+  const newPathParent = path.slice(0, path.length - 1) as Path
+
+  const newPath = appendToPath(newPathParent, {
+    id: hashContext(unroot([...pathToContext(newPathParent), newValue])),
+    value: newValue,
+    rank: rankInContext || rank,
+  })
 
   // Uncaught TypeError: Cannot perform 'IsArray' on a proxy that has been revoked at Function.isArray (#417)
   let recentlyEdited = state.recentlyEdited // eslint-disable-line fp/no-let
@@ -161,7 +188,7 @@ const editThought = (
       contexts: removeContext(thoughtParentOld!, parentOf(pathToContext(pathLiveOld)), rank).contexts.concat({
         context: thoughtsNew,
         rank,
-        ...(id ? { id } : null),
+        id: hashContext(unroot([...thoughtsNew, thoughtParentOld!.value])),
         ...(archived ? { archived } : {}),
       }),
       created: thoughtParentOld?.created || timestamp(),
@@ -180,10 +207,10 @@ const editThought = (
         !equalThoughtRanked(child, { value: oldValue, rank }) && !equalThoughtRanked(child, { value: newValue, rank }),
     )
     .concat({
+      id: hashContext(unroot([...contextNew, showContexts ? value : newValue])),
       value: showContexts ? value : newValue,
       rank,
       lastUpdated: timestamp(),
-      ...(id ? { id } : null),
       ...(archived ? { archived } : {}),
     })
 
@@ -202,13 +229,20 @@ const editThought = (
         .filter(
           child =>
             (newOldThought ||
-              !equalThoughtRanked(child, { value: oldValue, rank: headRank(rootedParentOf(state, pathLiveOld)) })) &&
-            !equalThoughtRanked(child, { value: newValue, rank: headRank(rootedParentOf(state, pathLiveOld)) }),
+              !equalThoughtRanked(child, {
+                value: oldValue,
+                rank: headRank(rootedParentOf(state, pathLiveOld)),
+              })) &&
+            !equalThoughtRanked(child, {
+              value: newValue,
+              rank: headRank(rootedParentOf(state, pathLiveOld)),
+            }),
         )
         // do not add floating thought to context
         .concat(
           lexemeOld.contexts.length > 0
             ? {
+                id: hashContext(unroot([...contextParent, newValue])),
                 value: newValue,
                 rank: headRank(rootedParentOf(state, pathLiveOld)),
                 lastUpdated: timestamp(),
@@ -383,8 +417,22 @@ const editThought = (
     ...descendantUpdates,
   }
 
+  // @MIGRATION-FIX (Making Parent.id required)
+  // The context will not be needed anymore to identify parent after independent editing. This is fix for migration.
+  // Also way to handle thoughts edit inside context view will change later.
+  const parentNew = getParent(state, contextNew)
+  const parentOld = getParent(state, contextOld)
+  const parent = getParent(state, contextParent)
+
+  if (!parentNew || !parentOld || !parent) {
+    console.error('Parent not found')
+    return state
+  }
+
   const contextIndexUpdates = {
     [contextNewEncoded]: {
+      id: parentNew.id,
+      value: head(contextNew),
       context: contextNew,
       children: thoughtNewSubthoughts,
       lastUpdated: timestamp(),
@@ -392,11 +440,15 @@ const editThought = (
     ...(showContexts
       ? {
           [contextOldEncoded]: {
+            id: parentOld.id,
+            value: head(contextOld),
             context: contextOld,
             children: thoughtOldSubthoughts,
             lastUpdated: timestamp(),
           },
           [contextParentEncoded]: {
+            id: parent.id,
+            value: head(contextParent),
             context: contextParent,
             children: thoughtParentSubthoughts,
             lastUpdated: timestamp(),

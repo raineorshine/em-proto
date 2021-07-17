@@ -20,6 +20,7 @@ import {
   ellipsize,
   equalArrays,
   equalPath,
+  hashContext,
   headValue,
   isDescendantPath,
   isDocumentEditable,
@@ -27,6 +28,7 @@ import {
   isRoot,
   parentOf,
   pathToContext,
+  unroot,
 } from '../util'
 
 // selectors
@@ -144,8 +146,11 @@ const drop = (props: ThoughtContainerProps, monitor: DropTargetMonitor) => {
   // drop on itself or after itself is a noop
   if (equalPath(thoughtsFrom, thoughtsTo) || isBefore(state, thoughtsFrom, thoughtsTo)) return
 
-  const newPath = appendToPath(parentOf(thoughtsTo), {
-    value: headValue(thoughtsFrom),
+  const value = headValue(thoughtsFrom)
+  const parent = unroot(parentOf(thoughtsTo))
+  const newPath = appendToPath(parent, {
+    id: hashContext([...pathToContext(parent), value]),
+    value: value,
     rank: getRankBefore(state, thoughtsTo),
   })
 

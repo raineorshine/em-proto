@@ -1,5 +1,5 @@
 import 'react-native-get-random-values'
-import { validate as uuidValidate } from 'uuid'
+// import { validate as uuidValidate } from 'uuid'
 import { ABSOLUTE_TOKEN, EM_TOKEN, HOME_PATH, HOME_TOKEN, EMPTY_SPACE } from '../../constants'
 import { hashContext, hashThought, never, reducerFlow, timestamp, removeHome } from '../../util'
 import { initialState } from '../../util/initialState'
@@ -31,7 +31,6 @@ it('basic import with proper thought structure', () => {
 
   expect(contextIndex).toMatchObject({
     [hashContext([EM_TOKEN])]: {
-      id: hashContext([EM_TOKEN]),
       context: [EM_TOKEN],
       children: [],
       lastUpdated: never(),
@@ -39,7 +38,6 @@ it('basic import with proper thought structure', () => {
       pending: true,
     },
     [hashContext([HOME_TOKEN])]: {
-      id: hashContext([HOME_TOKEN]),
       context: [HOME_TOKEN],
       children: [
         {
@@ -58,7 +56,6 @@ it('basic import with proper thought structure', () => {
       pending: true,
     },
     [hashContext(['a'])]: {
-      id: hashContext(['a']),
       context: ['a'],
       children: [
         {
@@ -71,11 +68,12 @@ it('basic import with proper thought structure', () => {
     },
   })
 
-  // Note: Jest doesn't have lexicographic string comparison yet :(
+  // @MIGRATION_TODO: Jest doesn't have lexicographic string comparison yet :(
   expect(contextIndex[hashContext(['a'])].lastUpdated >= now).toBeTruthy()
 
-  expect(uuidValidate(childAId!)).toBe(true)
-  expect(uuidValidate(childBId!)).toBe(true)
+  // Note: Child.id is hashedContext instead of uuid. Change this after migration is complete.
+  // expect(uuidValidate(childAId!)).toBe(true)
+  // expect(uuidValidate(childBId!)).toBe(true)
 
   expect(thoughtIndex).toMatchObject({
     [hashThought(HOME_TOKEN)]: {
@@ -379,8 +377,9 @@ it('duplicate thoughts', () => {
   const childAId = lexeme.contexts[0]?.id
   const childBId = lexeme.contexts[1]?.id
 
-  expect(uuidValidate(childAId!)).toBe(true)
-  expect(uuidValidate(childBId!)).toBe(true)
+  // @MIGRATION_TODO: Child.id is hashedContext instead of uuid. Change this after migration is complete.
+  // expect(uuidValidate(childAId!)).toBe(true)
+  // expect(uuidValidate(childBId!)).toBe(true)
 
   expect(lexeme).toMatchObject({
     value: 'm',
@@ -514,8 +513,8 @@ it('replace empty cursor', () => {
 
     importText({
       path: [
-        { value: 'a', rank: 0 },
-        { value: '', rank: 0 },
+        { id: hashContext(['a']), value: 'a', rank: 0 },
+        { id: hashContext(['a', '']), value: '', rank: 0 },
       ],
       text: paste,
     }),
@@ -557,8 +556,8 @@ it('replace empty cursor without affecting siblings', () => {
 
     importText({
       path: [
-        { value: 'a', rank: 0 },
-        { value: '', rank: 1 },
+        { id: hashContext(['a']), value: 'a', rank: 0 },
+        { id: hashContext(['a', '']), value: '', rank: 1 },
       ],
       text: paste,
     }),
@@ -585,7 +584,7 @@ it('import as subthoughts of non-empty cursor', () => {
   const stateNew = reducerFlow([
     newThought('a'),
     importText({
-      path: [{ value: 'a', rank: 0 }],
+      path: [{ id: hashContext(['a']), value: 'a', rank: 0 }],
       text: paste,
     }),
   ])(initialState())
@@ -661,8 +660,8 @@ it('single-line nested html tags', () => {
 
     importText({
       path: [
-        { value: 'a', rank: 0 },
-        { value: '', rank: 0 },
+        { id: hashContext(['a']), value: 'a', rank: 0 },
+        { id: hashContext(['a', '']), value: '', rank: 0 },
       ],
       text: paste,
     }),
