@@ -94,10 +94,9 @@ export const initialState = (created: Timestamp = timestamp()) => {
     expandHoverBottomPaths: {},
     invalidState: false,
     inversePatches: [],
-    invites: [],
-    invite: {},
     isLoading: true,
     isPushing: false,
+    isUserLoading: getLocal('user-login') === 'true',
     latestShortcuts: [],
     modals: {},
     noteFocus: false, // true if a note has the browser selection
@@ -141,6 +140,8 @@ export const initialState = (created: Timestamp = timestamp()) => {
   if (isDocumentEditable() && canShowModal(state, 'welcome')) {
     state.showModal = 'welcome'
   }
+
+  // state.showModal = 'auth'
 
   if (window && window.location.pathname.substr(1) === 'signup') {
     state.showModal = 'signup'
