@@ -4,7 +4,7 @@ import classNames from 'classnames'
 import { FADEOUT_DURATION } from '../constants'
 import { modalCleanup } from '../util'
 import { Connected } from '../@types'
-import { closeModal, modalComplete, tutorial } from '../action-creators'
+import { closeModal, modalComplete, tutorial, removeInvites } from '../action-creators'
 
 interface ModalActionHelpers {
   close: (duration?: number) => void
@@ -55,7 +55,7 @@ class ModalComponent extends React.Component<Connected<ModalProps>> {
        * A handler that closes the modal when the escape key is pressed.
        */
       this.escapeListener = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && !['welcome', 'signup', 'auth'].includes(this.props.id)) {
           e.stopPropagation()
           this.close!()
         }
@@ -65,13 +65,17 @@ class ModalComponent extends React.Component<Connected<ModalProps>> {
        * Animate and close the modal.
        */
       this.animateAndClose = () => {
-        const { dispatch } = this.props
+        const { dispatch, id } = this.props
         window.removeEventListener('keydown', this.escapeListener!, true)
         modalCleanup()
         if (this.ref.current) {
           this.ref.current.classList.add('animate-fadeout')
         }
         setTimeout(() => {
+          if (id === 'signup' && window && window.location.pathname.substr(1) === 'signup') {
+            window.history.pushState({}, '', window.location.origin)
+          }
+          if (id === 'invites') dispatch(removeInvites())
           dispatch(closeModal())
         }, FADEOUT_DURATION)
       }
@@ -149,7 +153,7 @@ class ModalComponent extends React.Component<Connected<ModalProps>> {
           })
         }
       >
-        {id !== 'welcome' ? (
+        {!['welcome', 'signup', 'auth'].includes(id) ? (
           <a className='upper-right popup-close-x text-small' onClick={this.close}>
             ✕
           </a>

@@ -6,11 +6,15 @@ import {
   setRemoteSearch,
   status as statusActionCreator,
   userAuthenticated,
+  getInviteById,
+  updateInviteCode,
+  setAuthLoader,
 } from '../action-creators'
 import { ALGOLIA_CONFIG, FIREBASE_CONFIG, OFFLINE_TIMEOUT } from '../constants'
 import { owner } from '../util'
 import { Firebase, State } from '../@types'
 import initAlgoliaSearch from '../search/algoliaSearch'
+import { storage } from '../util/storage'
 
 /** Initialize firebase and event handlers. */
 export const initFirebase = async ({ store }: { store: Store<State, any> }) => {
@@ -22,7 +26,15 @@ export const initFirebase = async ({ store }: { store: Store<State, any> }) => {
     // this is called when the user logs in or the page refreshes when the user is already authenticated
     firebase.auth().onAuthStateChanged((user: Firebase.User) => {
       if (user) {
+        storage.setItem('user-login', 'false')
         store.dispatch(userAuthenticated(user))
+        store.dispatch(setAuthLoader({ value: false }))
+
+        const { invitationCode = '' } = store.getState()
+
+        if (invitationCode !== '') {
+          store.dispatch(updateInviteCode(user.uid, invitationCode))
+        }
 
         const { applicationId, index } = ALGOLIA_CONFIG
         const hasRemoteConfig = applicationId && index
@@ -64,6 +76,12 @@ export const initFirebase = async ({ store }: { store: Store<State, any> }) => {
         store.dispatch(statusActionCreator({ value: 'offline' }))
       }
     })
+
+    const { invitationCode, showModal: stateShowModal } = store.getState()
+
+    if (invitationCode !== '' && stateShowModal === 'signup') {
+      store.dispatch(getInviteById(invitationCode))
+    }
   }
 
   // before thoughtIndex has been loaded, wait a bit before going into offline mode to avoid flashing the Offline status message

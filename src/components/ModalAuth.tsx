@@ -1,9 +1,10 @@
-import React, { ChangeEvent, FC, useCallback, useEffect, useState } from 'react'
+import React, { ChangeEvent, useCallback, useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { alert, login } from '../action-creators'
+import { alert, login, setAuthLoader } from '../action-creators'
 import { FIREBASE_REDIRECT_URL } from '../constants'
 import { ActionButton } from './ActionButton'
 import { Index } from '../@types'
+import Input from './Input'
 import Modal from './Modal'
 
 const firebaseErrorsIndex = {
@@ -20,28 +21,6 @@ type errorCode = keyof typeof firebaseErrorsIndex
 
 type SubmitAction = (closeModal: () => void, email: string, password?: string) => Promise<void>
 
-interface InputProps {
-  type: 'email' | 'password'
-  placeholder: string
-  onBlur: (e: ChangeEvent<HTMLInputElement>) => void
-  value: string
-}
-/**
- *
- */
-const Input: FC<InputProps> = ({ type, placeholder, value, onBlur }) => {
-  const [inputValue, updateInputValue] = useState(value)
-
-  useEffect(() => {
-    updateInputValue(value)
-  }, [value])
-
-  /** On input change handler. */
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => updateInputValue(e.target.value)
-
-  return <input type={type} placeholder={placeholder} value={inputValue} onChange={onChange} onBlur={onBlur} />
-}
-
 interface Mode {
   name: string
   modalKey: string
@@ -53,11 +32,6 @@ const modes: Index<Mode> = {
     name: 'login',
     modalKey: 'login',
     modalTitle: 'Log In',
-  },
-  signup: {
-    name: 'signup',
-    modalKey: 'signup',
-    modalTitle: 'Sign Up',
   },
   resetPassword: {
     name: 'resetPassword',
@@ -80,19 +54,6 @@ const ModalAuth = () => {
 
   const dispatch = useDispatch()
 
-  /** Sign up with email and password. */
-  const signUp: SubmitAction = useCallback(async (closeModal, email, password) => {
-    updateIsSubmitting(true)
-    try {
-      await window.firebase.auth().createUserWithEmailAndPassword(email, password!)
-      closeModal()
-      updateIsSubmitting(false)
-    } catch (error) {
-      updateIsSubmitting(false)
-      return updateError(firebaseErrorsIndex[error?.code as errorCode] || firebaseErrorsIndex.default)
-    }
-  }, [])
-
   /** Reset password using reset email. */
   const resetPassword: SubmitAction = useCallback(async (closeModal, email) => {
     updateIsSubmitting(true)
@@ -110,6 +71,7 @@ const ModalAuth = () => {
 
   /** Login with email and password. */
   const loginWithEmailAndPassword: SubmitAction = useCallback(async (closeModal, email, password) => {
+    dispatch(setAuthLoader({ value: true }))
     updateIsSubmitting(true)
     try {
       await window.firebase.auth().signInWithEmailAndPassword(email, password!)
@@ -121,11 +83,7 @@ const ModalAuth = () => {
     }
   }, [])
 
-  const submitAction = isModeActive(modes.login)
-    ? loginWithEmailAndPassword
-    : isModeActive(modes.signup)
-    ? signUp
-    : resetPassword
+  const submitAction = isModeActive(modes.login) ? loginWithEmailAndPassword : resetPassword
 
   /**
    * Reset Email and Password fields.
@@ -140,6 +98,7 @@ const ModalAuth = () => {
    * Login using google account.
    */
   const signInWithGoogle = () => {
+    dispatch(setAuthLoader({ value: true }))
     updateIsSubmitting(true)
     dispatch(login())
   }
@@ -153,9 +112,6 @@ const ModalAuth = () => {
 
   /** Handle password change. */
   const onChangePassword = (e: ChangeEvent<HTMLInputElement>) => updatePassword(e.target.value)
-
-  /** Show Sign Up with email and password. */
-  const showSignup = () => updateActiveMode(modes.signup)
 
   /** Show Login with email and password. */
   const showLogin = () => updateActiveMode(modes.login)
@@ -190,17 +146,6 @@ const ModalAuth = () => {
             </button>
           )}
 
-          {isModeActive(modes.login) && (
-            <button
-              disabled={isSubmitting}
-              className='button'
-              onClick={showSignup}
-              style={{ textDecoration: 'underline', marginTop: 15 }}
-            >
-              Create an account
-            </button>
-          )}
-
           {!isModeActive(modes.resetPassword) && (
             <button
               disabled={isSubmitting}
@@ -226,10 +171,10 @@ const ModalAuth = () => {
       )}
     >
       <div style={{ display: 'flex', minHeight: '100px', flexDirection: 'column' }}>
-        <Input type='email' placeholder='email' value={email} onBlur={onChangeEmail} />
+        <Input type='email' placeholder='email' value={email} onChange={onChangeEmail} />
 
         {!isModeActive(modes.resetPassword) && (
-          <Input type='password' placeholder='password' value={password} onBlur={onChangePassword} />
+          <Input type='password' placeholder='password' value={password} onChange={onChangePassword} />
         )}
 
         {isModeActive(modes.login) && (
